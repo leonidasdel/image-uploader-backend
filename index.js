@@ -1,51 +1,67 @@
+require('dotenv/config')
 const http = require("http");
 const path = require("path");
 const fs = require("fs");
 
+const aws = require("aws-sdk")
+const multerS3 = require("multer-s3")
 const multer = require("multer");
 
+const cors = require('cors')
+const { v4: uuidv4 } = require('uuid');
 const express = require("express");
-
 const app = express();
+app.use(cors())
 const httpServer = http.createServer(app);
+const PORT = process.env.PORT || 4201;
 
-const PORT = process.env.PORT || 3000;
+
+const handleError = (err, res) => {
+  res
+    .status(500)
+    .contentType("text/plain")
+    .end("Oops! Something went wrong!");
+};
+
+
+aws.config.update({
+  secretAccessKey: process.env.SECRET_KEY,
+  accessKeyId: process.env.ACCESS_KEY,
+  region: 'eu-central-1'
+});
+
+const s3 = new aws.S3({ apiVersion: '2006-03-01' });
 
 httpServer.listen(PORT, () => {
   console.log(`Server is listening on port ${PORT}`);
 });
 
 const upload = multer({
-    dest: "/assets",
-    fileSize: '10000',
-    // you might also want to set some limits: https://github.com/expressjs/multer#limits
-  });
+  storage: multerS3({
+    s3: s3,
+    bucket: 'image-uploader-storage',
+    contentType: multerS3.AUTO_CONTENT_TYPE,
+    key: function (req, file, cb) {
+      var fileExtension = file.originalname.split(".")[1];
+      var path = "uploads/" + uuidv4() + Date.now() + "." + fileExtension;
+      cb(null, path); 
+  }
+  })
+})
 
 app.post(
     "/upload",
     upload.single("file" /* name attribute of <file> element in your form */),
     (req, res) => {
-      const tempPath = req.file.path;
-      const targetPath = path.join(__dirname, "./uploads/image.png");
-  
-      if (path.extname(req.file.originalname).toLowerCase() === ".png") {
-        fs.rename(tempPath, targetPath, err => {
-          if (err) return handleError(err, res);
-  
+      console.log(res)
           res
             .status(200)
-            .contentType("text/plain")
-            .end("File uploaded!");
-        });
-      } else {
-        fs.unlink(tempPath, err => {
-          if (err) return handleError(err, res);
-  
-          res
-            .status(403)
-            .contentType("text/plain")
-            .end("Only .png files are allowed!");
-        });
-      }
-    }
-  );
+            .contentType("application/json")
+            .json({path:req.file.location})
+            .end()
+        })
+
+
+  app.get("/images/:fileName", (req, res) => {
+    res.sendFile(path.join(__dirname, `./uploads/${req.params.fileName}`));
+  });
