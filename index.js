@@ -1,7 +1,6 @@
 require('dotenv/config')
 const http = require("http");
 const path = require("path");
-const fs = require("fs");
 
 const aws = require("aws-sdk")
 const multerS3 = require("multer-s3")
@@ -14,15 +13,6 @@ const app = express();
 app.use(cors())
 const httpServer = http.createServer(app);
 const PORT = process.env.PORT || 4201;
-
-
-const handleError = (err, res) => {
-  res
-    .status(500)
-    .contentType("text/plain")
-    .end("Oops! Something went wrong!");
-};
-
 
 aws.config.update({
   secretAccessKey: process.env.SECRET_KEY,
@@ -53,15 +43,9 @@ app.post(
     "/upload",
     upload.single("file" /* name attribute of <file> element in your form */),
     (req, res) => {
-      console.log(res)
           res
             .status(200)
             .contentType("application/json")
             .json({path:req.file.location})
             .end()
         })
-
-
-  app.get("/images/:fileName", (req, res) => {
-    res.sendFile(path.join(__dirname, `./uploads/${req.params.fileName}`));
-  });
