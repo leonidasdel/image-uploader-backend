@@ -29,7 +29,7 @@ httpServer.listen(PORT, () => {
 const upload = multer({
   storage: multerS3({
     s3: s3,
-    bucket: 'image-uploader-storage',
+    bucket: process.env.BUCKET_NAME,
     contentType: multerS3.AUTO_CONTENT_TYPE,
     key: function (req, file, cb) {
       var fileExtension = file.originalname.split(".")[1];
